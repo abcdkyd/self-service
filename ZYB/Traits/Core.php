@@ -111,23 +111,29 @@ trait Core
                     if ($conf['type'] == 'array') {
                         foreach ($conf['child'] as $conf_child) {
                             if ($conf_child['is_required'] == true) {
-                                if (!isset($data[$conf['key']][$conf_child['key']])) {
-                                    $message = '<' . $key . '>缺少参数：' . $conf['key'] . '.' . $conf_child['key'];
-                                    $status = 'error';
-                                    break 2;
-                                }
+                                foreach ($data[$conf['key']] as $data_child_key => $data_child_val) {
 
-                                $data_conf_child = (array)$data[$conf['key']][$conf_child['key']];
-                                foreach ($data_conf_child as $conf_child_k => $conf_child_key) {
-                                    if (!call_user_func('is_' . $conf_child['type'], $conf_child_key)) {
-                                        $message = "<{$key}>参数{$conf['key']}.{$conf_child['key']}[{$conf_child_k}]的类型需为：{$conf_child['type']}";
+                                    if (!is_array($data_child_val)) {
+                                        $message = "<{$key}>缺少参数：{$conf['key']}需为循环节点，子项要为数组";
+                                        $status = 'error';
+                                        break 3;
+                                    }
+
+                                    if (!isset($data_child_val[$conf_child['key']])) {
+                                        $message = "<{$key}>缺少参数：{$conf['key']}[{$data_child_key}].{$conf_child['key']}";
+                                        $status = 'error';
+                                        break 3;
+                                    }
+
+                                    if (!call_user_func('is_' . $conf_child['type'], $data_child_val[$conf_child['key']])) {
+                                        $message = "<{$key}>参数{$conf['key']}[{$data_child_key}].{$conf_child['key']}的类型需为：{$conf_child['type']}";
                                         $status = 'error';
                                         break 3;
                                     }
 
                                     if ($conf_child['type'] == 'string') {
-                                        if (strlen($conf_child_key) > $conf_child['len'] || strlen($conf_child_key) <= 0) {
-                                            $message = "<{$key}>参数{$conf_child['key']}[{$conf_child_k}]的长度不正确";
+                                        if (strlen($data_child_val[$conf_child['key']]) > $conf_child['len'] || strlen($data_child_val[$conf_child['key']]) <= 0) {
+                                            $message = "<{$key}>参数{$conf['key']}[{$data_child_key}].{$conf_child['key']}的长度不正确";
                                             $status = 'error';
                                             break 3;
                                         }
@@ -161,16 +167,15 @@ trait Core
             foreach ($data as $d_key => $d_val) {
                 if (!isset($config_input[$d_key])) continue;
                 if ($config_input[$d_key]['type'] == 'array') {
-                    $xml_ = '';
-                    foreach ($d_val as $d_val_key => $d_val_val) {
-                        if (!isset($config_input[$d_key]['child'][$d_val_key])) continue;
 
-                        $d_val_val = (array)$d_val_val;
-                        foreach ($d_val_val as $d_val_val_) {
-                            $xml_ .= "<{$d_val_key}>{$d_val_val_}</{$d_val_key}>";
+                    foreach ($d_val as $d_key_2 => $d_val_2) {
+                        $xml_ = '';
+                        foreach ($d_val_2 as $d_key_3 => $d_val_3) {
+                            if (!isset($config_input[$d_key]['child'][$d_key_3])) continue;
+                            $xml_ .= "<{$d_key_3}>{$d_val_3}</{$d_key_3}>";
                         }
+                        $xml .= "<{$d_key}>{$xml_}</{$d_key}>";
                     }
-                    $xml .= "<{$d_key}>{$xml_}</{$d_key}>";
                 } else {
                     $xml .= "<{$d_key}>{$d_val}</{$d_key}>";
                 }
